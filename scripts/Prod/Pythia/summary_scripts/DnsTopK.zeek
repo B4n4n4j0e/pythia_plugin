@@ -12,10 +12,9 @@ export {
         counter: count &log &default=0;
     };
     
-
-event Input::end_of_data(name: string, source: string)
+# Defines and applies filter for new stream
+event zeek_init() &priority=4
     {
-    print("THIS IS THE PATH (SUMMARY):" + pythia_summary_path);
     local filter : Log::Filter = 
     [
         $name="sqlite",

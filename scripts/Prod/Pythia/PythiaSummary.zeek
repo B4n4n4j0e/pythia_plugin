@@ -13,17 +13,25 @@
 
 global portsOfInterest: set[port] = {10/tcp, 21/tcp, 22/tcp, 23/tcp, 25/tcp, 80/tcp, 110/tcp, 139/tcp, 443/tcp, 445/tcp, 3389/tcp, 10/udp, 53/udp, 67/udp, 123/udp, 135/udp, 137/udp, 138/udp, 161/udp, 445/udp, 631/udp, 1434/udp };
 
-event connection_state_remove(c: connection) &priority = 0
-    {
-    
-
+#defines which values to observe on event new_connection
+event new_connection(c: connection) &priority = 0 {
     SumStats::observe("resp_host",[],SumStats::Observation($str=cat(c$id$resp_h)));
     SumStats::observe("origin_host",[],SumStats::Observation($str=cat(c$id$orig_h)));
     SumStats::observe("resp_port",[],SumStats::Observation($str=cat(c$id$resp_p)));
     SumStats::observe("connection",[],SumStats::Observation($str=cat(c$id)));
+	if (c$id$resp_p in portsOfInterest)  
+		{
+			SumStats::observe("resp_poi",SumStats::Key($str=cat(c$id$resp_p)),SumStats::Observation($num=1));
+		}
+
+}
+#defines which values to observe on event connection_state_remove
+event connection_state_remove(c: connection) &priority = 0
+    {
+    
     SumStats::observe("ip_bytes",SumStats::Key($str="orig"),SumStats::Observation($num=c$orig$num_bytes_ip));
     SumStats::observe("ip_bytes",SumStats::Key($str="resp"),SumStats::Observation($num=c$resp$num_bytes_ip));
-	
+
     SumStats::observe("proto",SumStats::Key($str=cat(c$conn$proto)),SumStats::Observation($num=1));
 
     if(c$conn?$service)
@@ -34,14 +42,9 @@ event connection_state_remove(c: connection) &priority = 0
 		SumStats::observe("service",SumStats::Key($str=" -"),SumStats::Observation($num=1));
 	}
 
-	if (c$id$resp_p in portsOfInterest)  
-		{
-			SumStats::observe("resp_poi",SumStats::Key($str=cat(c$id$resp_p)),SumStats::Observation($num=1));
-		}
-
     }
 
-
+#defines which values to observe on event dns_request
 event dns_request(c: connection, msg: dns_msg, query: string, qtype: count, qclass: count){
     if (query != "")
     {
@@ -49,7 +52,8 @@ event dns_request(c: connection, msg: dns_msg, query: string, qtype: count, qcla
     }
 }
 
-event zeek_init() {
+event zeek_init() &priority=4 {
+	#defines which reducer methodology is used (SUM or TOPK) for observed values
     local rDNSQuery = SumStats::Reducer($stream="dns_query",$apply=set(SumStats::TOPK));
     local rRespHost = SumStats::Reducer($stream="resp_host",$apply=set(SumStats::TOPK));
 	local rOriginHost = SumStats::Reducer($stream="origin_host",$apply=set(SumStats::TOPK));
@@ -59,15 +63,16 @@ event zeek_init() {
 	local rService = SumStats::Reducer($stream="service",$apply=set(SumStats::SUM));
     local rRespPOI = SumStats::Reducer($stream="resp_poi",$apply=set(SumStats::SUM));
 	local rConn = SumStats::Reducer($stream="connection",$apply=set(SumStats::SUM));
-
-        SumStats::create([	$name = "top k dns queries",
+		
+	#defines what to do with observed data and when to trigger it        
+	SumStats::create([	$name = "top k dns queries",
                     $epoch = 1hrs,
                     $reducers = set(rDNSQuery),
                     $epoch_result(ts:time, key:SumStats::Key, result: SumStats::Result) = {
                     
                     local r = result["dns_query"];
                     local s: vector of SumStats::Observation;
-                    s = topk_get_top(r$topk,10);
+                    s = topk_get_top(r$topk,20);
                                         
                         for ( i in s )
                         {
@@ -76,7 +81,7 @@ event zeek_init() {
                         
                         local query: string = s[i]$str;
                 		Log::write(DnsTopK::LOG, [$ts=ts, $name=query,$counter=topk_count(r$topk,s[i])]);
-
+						
                 		}
 
                 		}]);
@@ -90,7 +95,7 @@ event zeek_init() {
 						
 						local r = result["resp_host"];
 						local s: vector of SumStats::Observation;
-						s = topk_get_top(r$topk,10);
+						s = topk_get_top(r$topk,20);
 												
 						    for ( i in s )
                             {
@@ -111,7 +116,7 @@ event zeek_init() {
 						
 						local r = result["origin_host"];
 						local s: vector of SumStats::Observation;
-						s = topk_get_top(r$topk,10);						
+						s = topk_get_top(r$topk,20);						
 						    for ( i in s )
                             {
                             if ( i == 10 )
@@ -129,7 +134,7 @@ event zeek_init() {
 						$epoch_result(ts:time, key:SumStats::Key, result: SumStats::Result) = {
 						local r = result["resp_port"];
 						local s: vector of SumStats::Observation;
-						s = topk_get_top(r$topk,10);
+						s = topk_get_top(r$topk,20);
 						    for ( i in s )
                             {
                             if ( i == 10 )
@@ -147,7 +152,7 @@ event zeek_init() {
 						$reducers = set(rIPBytes),
 						$epoch_result(ts:time, key:SumStats::Key, result: SumStats::Result) = {
 						local r = result["ip_bytes"];
-						Log::write(IPBytesSum::LOG, [$ts=ts, $name=key$str ,$counter=double_to_count(r$sum/1000)]);
+						Log::write(IPBytesSum::LOG, [$ts=ts, $name=key$str ,$counter=double_to_count(r$sum/1024)]);
 						}]);
 						
 

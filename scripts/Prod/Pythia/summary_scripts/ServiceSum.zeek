@@ -12,8 +12,8 @@ export {
         counter: count &log &default=0;
     };
     
-
-event Input::end_of_data(name: string, source: string)
+# Defines and applies filter for new stream
+event zeek_init() &priority=4
     {
     local filter : Log::Filter = 
     [
@@ -26,3 +26,4 @@ event Input::end_of_data(name: string, source: string)
     Log::add_filter(ServiceSum::LOG, filter);
     }
 }
+

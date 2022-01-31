@@ -1,39 +1,26 @@
+#get variables for configuration from environment variables
 
-type OptionKey: record {
-key: string;
-};
+global pythia_mode: string = getenv("PYTHIA_ZEEK_MODE") &redef;
+global pythia_config: string = getenv("PYTHIA_CONFIG") &redef;
+global pythia_pcap_config: string = getenv("PYTHIA_PCAP_CONFIG") &redef;
+global pythia_summary_path: string =getenv("PYTHIA_PATH") &redef;
+global pythia_detail_path: string = getenv("PYTHIA_PATH") &redef;
+global pythia_summary_pcap_path: string =getenv("PYTHIA_PCAP_PATH") &redef;
+global pythia_detail_pcap_path: string = getenv("PYTHIA_PCAP_PATH") &redef;
 
-type OptionValue: record {
-value: string;
 
-};
-
-global pythia_options: table[string] of OptionValue = table();
-global pythia_mode: string ="sensor" &redef;
-global pythia_summary_path: string ="/var/db/pythia_summary" &redef;
-global pythia_detail_path: string ="/var/db/pythia" &redef;
-
-event zeek_init() 
+#sets path for log writes depending on pythia_mode variable
+event zeek_init() &priority=8
     {
-
-    Input::add_table([$source="config.file", $name="pythia_options",
-                      $idx=OptionKey, $val=OptionValue, $destination=pythia_options]);
-    Input::remove("pythia_options");
-    }
-
-
-event Input::end_of_data(name: string, source: string) &priority=6{
-    print(pythia_options);
-
     if (pythia_mode == "pcap")
     {
-        pythia_detail_path = pythia_options["pcap_path"]$value + "pythia_pcap";
-        pythia_summary_path = pythia_options["pcap_path"]$value + "pythia_summary_pcap";
-        print(pythia_detail_path);
+        pythia_detail_path = getenv("PYTHIA_PCAP_PATH") + "/pythia_pcap";
+        pythia_summary_path = getenv("PYTHIA_PCAP_PATH") + "/pythia_summary_pcap";
+ 
     }
     else {
-        pythia_detail_path = pythia_options["sensor_path"]$value + "pythia";
-        pythia_summary_path = pythia_options["sensor_path"]$value + "pythia_summary";
+        pythia_detail_path = pythia_detail_path + "/pythia";
+        pythia_summary_path = pythia_summary_path + "/pythia_summary";
     }
-	print("TEEEEST" + pythia_detail_path + pythia_summary_path);
+
 }
