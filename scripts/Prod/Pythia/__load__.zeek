@@ -13,7 +13,6 @@
         @load misc/scan
     @endif
     @if(/:TRACEROUTE:/ in pythia_config )
-        @load ./test
         @load misc/detect-traceroute
     @endif
     @if (!(/:NOSUMMARY:/ in pythia_config))
