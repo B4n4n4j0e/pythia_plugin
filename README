@@ -7,9 +7,11 @@ pythia_plugin implements zeek specific configuration to run the Pythia applicati
 
 # Install 
 - git clone this repository 
+- Add .../zeek/bin folder to PATH ```PATH=$PATH:.../zeek/bin ```
 - Change to the pythia_plugin directory
-- To build application ```./configure --zeek-dist=/path/to/zeek/dist && make```
-- To check if it works ```export ZEEK_PLUGIN_PATH="path/to/pythia_plugin/build"```
+- To build application ```./configure && make```
+- To check if it works ```export ZEEK_PLUGIN_PATH="path/to/pythia_plugin/build"``` `
     - If ```zeek -N | grep Pythia``` returns information the plugin works
+	- Unset environment variable: ```unset ZEEK_PLUGIN_PATH``
 - Don't forget to add the module by inserting ``@load Prod/Pythia`` at the end of local.zeek. 
 - For more information see zeek documentation https://docs.zeek.org/en/master/devel/plugins.html. 
